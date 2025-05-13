@@ -3,9 +3,10 @@ import java.awt.*;
 import java.awt.event.*;
 
 public class Frame extends JFrame {
-    private final int RESIZE_MARGIN = 2;
+    private final int RESIZE_MARGIN = 5; // Invisible resize margin
     private Point dragStart = null;
     private int resizeDir = Cursor.DEFAULT_CURSOR;
+    private JPanel contentPanel;
 
     public Frame(String title) {
         super(title);
@@ -14,61 +15,33 @@ public class Frame extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        JPanel outerPanel = new JPanel(null) {
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-            }
-        };
+        // Create transparent root pane
+        setRootPane(new JRootPane());
+        getRootPane().setDoubleBuffered(true);
 
-        outerPanel.setBackground(new Color(0, 0, 0, 0));
-        outerPanel.setOpaque(false);
-        setContentPane(outerPanel);
-
-        // Actual visible content
-        JPanel contentPanel = new JPanel(new BorderLayout());
-        contentPanel.setBounds(RESIZE_MARGIN, RESIZE_MARGIN,
-                getWidth() - RESIZE_MARGIN * 2, getHeight() - RESIZE_MARGIN * 2);
+        // Create main content panel (this will be the only visible panel)
+        contentPanel = new JPanel(new BorderLayout());
         contentPanel.setBackground(Color.DARK_GRAY);
-        outerPanel.add(contentPanel);
+        setContentPane(contentPanel); // Set as content pane directly
 
-        // Add resizing behavior
-        MouseAdapter resizeListener = new MouseAdapter() {
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                int x = e.getX();
-                int y = e.getY();
-                int w = getWidth();
-                int h = getHeight();
-
-                if (x <= RESIZE_MARGIN && y <= RESIZE_MARGIN)
-                    setCursor(Cursor.getPredefinedCursor(Cursor.NW_RESIZE_CURSOR));
-                else if (x >= w - RESIZE_MARGIN && y <= RESIZE_MARGIN)
-                    setCursor(Cursor.getPredefinedCursor(Cursor.NE_RESIZE_CURSOR));
-                else if (x <= RESIZE_MARGIN && y >= h - RESIZE_MARGIN)
-                    setCursor(Cursor.getPredefinedCursor(Cursor.SW_RESIZE_CURSOR));
-                else if (x >= w - RESIZE_MARGIN && y >= h - RESIZE_MARGIN)
-                    setCursor(Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR));
-                else if (x <= RESIZE_MARGIN)
-                    setCursor(Cursor.getPredefinedCursor(Cursor.W_RESIZE_CURSOR));
-                else if (x >= w - RESIZE_MARGIN)
-                    setCursor(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR));
-                else if (y <= RESIZE_MARGIN)
-                    setCursor(Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR));
-                else if (y >= h - RESIZE_MARGIN)
-                    setCursor(Cursor.getPredefinedCursor(Cursor.S_RESIZE_CURSOR));
-                else
-                    setCursor(Cursor.getDefaultCursor());
-            }
-
+        // Add invisible mouse listeners for resizing
+        addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 dragStart = e.getPoint();
-                resizeDir = getCursor().getType();
+                resizeDir = getResizeDirection(e.getPoint());
+            }
+        });
+
+        addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                setCursor(Cursor.getPredefinedCursor(getResizeDirection(e.getPoint())));
             }
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                if (resizeDir == Cursor.DEFAULT_CURSOR)
+                if (resizeDir == Cursor.DEFAULT_CURSOR || dragStart == null)
                     return;
 
                 Point current = e.getLocationOnScreen();
@@ -122,23 +95,35 @@ public class Frame extends JFrame {
 
                 setBounds(bounds);
                 dragStart = e.getPoint();
-
-                // Update inner content panel size
-                contentPanel.setBounds(RESIZE_MARGIN, RESIZE_MARGIN,
-                        getWidth() - RESIZE_MARGIN * 2, getHeight() - RESIZE_MARGIN * 2);
-                contentPanel.revalidate();
             }
-        };
-
-        outerPanel.addMouseListener(resizeListener);
-        outerPanel.addMouseMotionListener(resizeListener);
-
-        // Expose inner content panel to App.java
-        setLayout(null);
-        this.contentPanel = contentPanel;
+        });
     }
 
-    private JPanel contentPanel;
+    private int getResizeDirection(Point p) {
+        int x = p.x;
+        int y = p.y;
+        int w = getWidth();
+        int h = getHeight();
+
+        if (x <= RESIZE_MARGIN && y <= RESIZE_MARGIN)
+            return Cursor.NW_RESIZE_CURSOR;
+        if (x >= w - RESIZE_MARGIN && y <= RESIZE_MARGIN)
+            return Cursor.NE_RESIZE_CURSOR;
+        if (x <= RESIZE_MARGIN && y >= h - RESIZE_MARGIN)
+            return Cursor.SW_RESIZE_CURSOR;
+        if (x >= w - RESIZE_MARGIN && y >= h - RESIZE_MARGIN)
+            return Cursor.SE_RESIZE_CURSOR;
+        if (x <= RESIZE_MARGIN)
+            return Cursor.W_RESIZE_CURSOR;
+        if (x >= w - RESIZE_MARGIN)
+            return Cursor.E_RESIZE_CURSOR;
+        if (y <= RESIZE_MARGIN)
+            return Cursor.N_RESIZE_CURSOR;
+        if (y >= h - RESIZE_MARGIN)
+            return Cursor.S_RESIZE_CURSOR;
+
+        return Cursor.DEFAULT_CURSOR;
+    }
 
     public JPanel getContentPanel() {
         return contentPanel;
